@@ -1,0 +1,127 @@
+:root {
+    --filas: 6;
+    --columnas: 7;
+    --tamaño-celda: 60px; /* Tamaño de cada celda/ficha */
+    --color-fondo-tablero: #004d99; /* Azul Connect 4 */
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    margin: 0;
+}
+
+.container {
+    text-align: center;
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+    color: var(--color-fondo-tablero);
+}
+
+#status-message {
+    margin: 15px 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    min-height: 1.2em; /* Para evitar saltos de diseño */
+}
+
+/* --- ESTILOS DEL TABLERO GRID --- */
+.game-board {
+    display: grid;
+    /* 7 columnas de tamaño fijo */
+    grid-template-columns: repeat(var(--columnas), var(--tamaño-celda));
+    /* 6 filas de tamaño fijo */
+    grid-template-rows: repeat(var(--filas), var(--tamaño-celda));
+    background-color: var(--color-fondo-tablero);
+    border: 5px solid var(--color-fondo-tablero);
+    border-radius: 10px;
+    gap: 0; /* No queremos espacio entre las celdas */
+    position: relative;
+}
+
+/* Estilo para cada CELDA (Agujero del tablero) */
+.cell {
+    width: var(--tamaño-celda);
+    height: var(--tamaño-celda);
+    background-color: white;
+    /* Hacemos que la celda parezca un agujero */
+    border-radius: 50%; 
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+    /* Transición para la animación de caída */
+    transition: background-color 0.3s ease;
+    position: relative;
+    cursor: pointer;
+}
+
+/* Contenedor de la zona de soltar (Drop Zone) */
+#drop-zone {
+    grid-area: 1 / 1 / -1 / -1; /* Cubre todo el área del tablero */
+    display: grid;
+    grid-template-columns: repeat(var(--columnas), var(--tamaño-celda));
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+}
+
+/* Área de soltar (los 7 elementos transparentes superiores) */
+.drop-column {
+    width: var(--tamaño-celda);
+    height: calc(var(--tamaño-celda) * var(--filas));
+    cursor: pointer;
+    opacity: 0; /* Transparente, solo para capturar el clic */
+    transition: opacity 0.2s;
+}
+
+/* Indicador visual al pasar el ratón */
+.drop-column:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    opacity: 1;
+}
+
+/* --- ESTILOS DE LAS FICHAS --- */
+.chip {
+    width: 90%;
+    height: 90%;
+    border-radius: 50%;
+    position: absolute; /* Para que la ficha esté DENTRO de la celda */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
+    z-index: 5; /* Asegura que la ficha esté sobre el agujero blanco */
+}
+
+.player1 {
+    background-color: #ffc107; /* Amarillo */
+}
+
+.player2 {
+    background-color: #dc3545; /* Rojo */
+}
+
+/* --- BOTÓN DE REINICIO --- */
+#restart-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    background-color: var(--color-fondo-tablero);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+#restart-button:hover {
+    background-color: #003a73;
+}
