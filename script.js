@@ -1,421 +1,328 @@
-// --- CONFIGURACIÓN DEL JUEGO ---
-const FILAS = 6;
-const COLUMNAS = 7;
-const VACIO = 0;
-const JUGADOR = 1; // Humano (Amarillo)
-const IA = 2;      // Ordenador (Rojo)
-const PROFUNDIDAD_IA = 6; 
-
-// Variables de estado del juego
-let tablero;
+const filas = 6;
+const columnas = 7;
+let tablero = [];
+let jugadorActual = 1; 
 let juegoActivo = true;
-let jugadorActual = JUGADOR;
 
-// Elementos del DOM (Declarados aquí, pero se asignarán valores en DOMContentLoaded)
-// Esto soluciona el problema de "null"
-let statusMessage, gameBoardEl, dropZoneEl, restartButton; 
+const TABLERO_VACIO = 0;
+const JUGADOR_HUMANO = 1;
+const JUGADOR_IA = 2;
 
-// --- INICIALIZACIÓN ---
+const tableroDiv = document.getElementById('juego-tablero');
+const mensajeDiv = document.getElementById('mensaje');
+const reiniciarBoton = document.getElementById('reiniciar');
+const selectorDificultad = document.getElementById('dificultad'); 
 
-/**
- * Inicializa el tablero lógico y el visual.
- */
-function iniciarJuego() {
-    tablero = Array(FILAS).fill(0).map(() => Array(COLUMNAS).fill(VACIO));
-    juegoActivo = true;
-    jugadorActual = JUGADOR;
+// --- FUNCIONES DE INICIALIZACIÓN Y COLOCACIÓN ---
 
-    // Verificar que los elementos DOM existan antes de manipularlos
-    if (!gameBoardEl || !dropZoneEl) return; 
-    
-    // Limpiar el tablero
-    gameBoardEl.innerHTML = '';
-    dropZoneEl.innerHTML = '';
-
-    // Crear las 42 celdas visuales (fondo azul con agujeros blancos)
-    for (let r = 0; r < FILAS; r++) {
-        for (let c = 0; c < COLUMNAS; c++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.dataset.row = r;
-            cell.dataset.col = c;
-            gameBoardEl.appendChild(cell);
+function crearTableroHTML() {
+    tableroDiv.innerHTML = '';
+    tablero = [];
+    for (let r = 0; r < filas; r++) {
+        tablero[r] = [];
+        for (let c = 0; c < columnas; c++) {
+            tablero[r][c] = TABLERO_VACIO;
+            const celdaDiv = document.createElement('div');
+            celdaDiv.classList.add('celda');
+            celdaDiv.dataset.col = c;
+            celdaDiv.addEventListener('click', () => manejarClick(c));
+            tableroDiv.appendChild(celdaDiv);
         }
     }
-
-    // Crear las 7 áreas de clic para soltar las fichas
-    for (let c = 0; c < COLUMNAS; c++) {
-        const dropCol = document.createElement('div');
-        dropCol.classList.add('drop-column');
-        dropCol.dataset.col = c;
-        // El listener de clic: esencial para que la mano funcione.
-        dropCol.addEventListener('click', () => manejarMovimiento(c)); 
-        dropZoneEl.appendChild(dropCol);
-    }
-
-    actualizarMensajeEstado();
 }
 
-/**
- * Muestra el mensaje de estado actual (Turno o Ganador).
- */
-function actualizarMensajeEstado() {
-    if (!statusMessage) return;
-    if (!juegoActivo) return;
-    statusMessage.textContent = 
-        jugadorActual === JUGADOR 
-        ? "Turno del Jugador (Tú - Amarillo 🟡)"
-        : "Turno del Ordenador (Rojo 🔴)";
-}
-
-// --- LÓGICA DE MOVIMIENTO ---
-
-/**
- * Encuentra la primera fila VACIA en una columna dada.
- */
-function obtenerFilaDisponible(col) {
-    for (let r = FILAS - 1; r >= 0; r--) {
-        if (tablero[r][col] === VACIO) {
+function encontrarFilaLibre(col) {
+    for (let r = filas - 1; r >= 0; r--) {
+        if (tablero[r][col] === TABLERO_VACIO) {
             return r;
         }
     }
-    return -1;
+    return -1; // Columna llena
 }
 
-/**
- * Coloca una ficha en la representación lógica del tablero y la actualiza visualmente.
- */
 function colocarFicha(r, c, jugador) {
     tablero[r][c] = jugador;
+    const celdaIndex = r * columnas + c;
+    const celdaDiv = tableroDiv.children[celdaIndex];
 
-    const cellEl = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
-    if (cellEl) {
-        const chip = document.createElement('div');
-        chip.classList.add('chip', jugador === JUGADOR ? 'player1' : 'player2');
-        cellEl.appendChild(chip);
+    const fichaDiv = document.createElement('div');
+    fichaDiv.classList.add('ficha', `jugador-${jugador}`);
+    celdaDiv.appendChild(fichaDiv);
+}
+
+// --- LÓGICA DE JUEGO PRINCIPAL ---
+
+function manejarClick(col) {
+    if (!juegoActivo || jugadorActual !== JUGADOR_HUMANO) return;
+
+    const filaLibre = encontrarFilaLibre(col);
+
+    if (filaLibre !== -1) {
+        colocarFicha(filaLibre, col, jugadorActual);
+        
+        if (chequearGanador(filaLibre, col, jugadorActual)) {
+            finalizarJuego(`🎉 ¡Has ganado! 🎉`);
+        } else if (esTableroLleno()) {
+            finalizarJuego(`Empate`);
+        } else {
+            cambiarTurno();
+            setTimeout(turnoOrdenador, 500);
+        }
     }
 }
 
-/**
- * Maneja un movimiento completo.
- */
-async function manejarMovimiento(c) {
-    // Diagnóstico en consola: Si ves estos logs, la función fue llamada correctamente.
-    console.log("------------------------");
-    console.log(`Clic en columna: ${c}`);
-    console.log(`Juego Activo: ${juegoActivo}`);
-    console.log(`Turno Actual: ${jugadorActual === JUGADOR ? 'Jugador (1)' : 'IA (2)'}`);
-
-    if (!juegoActivo) {
-        console.log("Bloqueado: El juego no está activo.");
-        return;
-    }
-    
-    if (jugadorActual !== JUGADOR) {
-        console.log("Bloqueado: No es el turno del jugador humano.");
-        return;
-    }
-
-    const r = obtenerFilaDisponible(c);
-    console.log(`Fila disponible (r): ${r}`);
-
-    if (r !== -1) {
-        colocarFicha(r, c, JUGADOR);
-
-        if (comprobarVictoria(r, c, JUGADOR)) {
-            finalizarJuego("¡Felicidades! ¡Has ganado! 🎉");
-            return;
-        }
-
-        if (obtenerMovimientosValidos().length === 0) {
-            finalizarJuego("¡Es un empate! 🤝");
-            return;
-        }
-
-        // 1. Cambiar al turno de la IA y bloquear clics
-        jugadorActual = IA;
-        actualizarMensajeEstado();
-        juegoActivo = false; 
-
-        // 2. Ejecutar el movimiento de la IA después de un breve retraso
-        await new Promise(resolve => setTimeout(resolve, 800));
-        movimientoIA();
-    } else {
-        console.log("Columna llena. No se puede colocar ficha.");
-    }
-}
-
-/**
- * Lógica principal del movimiento de la IA (Algoritmo Minimax).
- */
-function movimientoIA() {
-    const mejorMovimiento = encontrarMejorMovimiento(tablero, PROFUNDIDAD_IA);
-    const c = mejorMovimiento.col;
-    const r = obtenerFilaDisponible(c);
-
-    if (r !== -1) {
-        colocarFicha(r, c, IA);
-
-        if (comprobarVictoria(r, c, IA)) {
-            finalizarJuego("¡El Ordenador ha ganado! 🤖");
-            return;
-        }
-
-        if (obtenerMovimientosValidos().length === 0) {
-            finalizarJuego("¡Es un empate! 🤝");
-            return;
-        }
-
-        // Cambiar al turno del jugador humano
-        jugadorActual = JUGADOR;
-        juegoActivo = true;
-        actualizarMensajeEstado();
-    }
-}
-
-// --- LÓGICA DE VERIFICACIÓN (Funciones Auxiliares) ---
-
-function obtenerMovimientosValidos() {
-    const validas = [];
-    for (let c = 0; c < COLUMNAS; c++) {
-        if (obtenerFilaDisponible(c) !== -1) {
-            validas.push(c);
-        }
-    }
-    return validas;
-}
-
-function comprobarVictoria(r, c, jugador) {
-    const ficha = tablero[r][c];
-    const direcciones = [
-        [0, 1], [1, 0], [1, 1], [1, -1]
-    ];
-
-    for (const [dr, dc] of direcciones) {
-        let contador = 1;
-        // Positivo
-        for (let i = 1; i <= 3; i++) {
-            const nr = r + dr * i;
-            const nc = c + dc * i;
-            if (nr >= 0 && nr < FILAS && nc >= 0 && nc < COLUMNAS && tablero[nr][nc] === ficha) {
-                contador++;
-            } else {
-                break;
-            }
-        }
-        // Negativo
-        for (let i = 1; i <= 3; i++) {
-            const nr = r - dr * i;
-            const nc = c - dc * i;
-            if (nr >= 0 && nr < FILAS && nc >= 0 && nc < COLUMNAS && tablero[nr][nc] === ficha) {
-                contador++;
-            } else {
-                break;
-            }
-        }
-        if (contador >= 4) {
-            return true;
-        }
-    }
-    return false;
+function cambiarTurno() {
+    jugadorActual = (jugadorActual === JUGADOR_HUMANO) ? JUGADOR_IA : JUGADOR_HUMANO;
+    const nombreJugador = (jugadorActual === JUGADOR_HUMANO) ? 'Jugador (Rojo)' : 'IA (Amarillo)';
+    mensajeDiv.textContent = `Turno de la ${nombreJugador}`;
 }
 
 function finalizarJuego(mensaje) {
     juegoActivo = false;
-    if (statusMessage) statusMessage.textContent = mensaje;
+    mensajeDiv.textContent = mensaje;
 }
 
-// --- ALGORITMO MINIMAX (IA) ---
-// (Contenido del Minimax y funciones auxiliares, omitido por longitud,
-// pero debe estar completo aquí como en el código original)
-function minimax(board, profundidad, esTurnoMax) {
-    // ... Implementación completa de minimax ...
-    const movimientosValidos = obtenerMovimientosValidosMinimax(board);
+function reiniciarJuego() {
+    juegoActivo = true;
+    jugadorActual = JUGADOR_HUMANO;
+    crearTableroHTML();
+    mensajeDiv.textContent = 'Turno del Jugador (Rojo)';
+}
 
-    if (profundidad === 0 || movimientosValidos.length === 0 || verificarTerminal(board).esTerminal) {
-        const estadoTerminal = verificarTerminal(board);
-        if (estadoTerminal.esTerminal) {
-            if (estadoTerminal.ganador === IA) return { score: 100000000000000 }; 
-            if (estadoTerminal.ganador === JUGADOR) return { score: -100000000000000 }; 
-            return { score: 0 }; 
+// --- LÓGICA DE TURNO DEL ORDENADOR ---
+
+function turnoOrdenador() {
+    if (!juegoActivo) return;
+
+    const mejorCol = encontrarMejorMovimiento();
+    const filaLibre = encontrarFilaLibre(mejorCol);
+
+    if (filaLibre !== -1) {
+        colocarFicha(filaLibre, mejorCol, JUGADOR_IA);
+
+        if (chequearGanador(filaLibre, mejorCol, JUGADOR_IA)) {
+            finalizarJuego(`🤖 ¡La IA ha ganado! 😭`);
+        } else if (esTableroLleno()) {
+            finalizarJuego(`Empate`);
         } else {
-            return { score: evaluarTablero(board) };
+            cambiarTurno();
         }
     }
+}
 
-    if (esTurnoMax) {
-        let valor = -Infinity;
-        let mejorColumna = movimientosValidos[0];
-
-        for (const col of movimientosValidos) {
-            const copiaTablero = duplicarTablero(board);
-            const fila = obtenerFilaDisponibleMinimax(copiaTablero, col);
-            copiaTablero[fila][col] = IA;
+function encontrarMejorMovimiento() {
+    let mejorValor = -Infinity;
+    let mejorColumna = -1;
+    
+    // Obtiene el valor de profundidad del selector
+    const profundidadSeleccionada = parseInt(selectorDificultad.value); 
+    
+    for (let c = 0; c < columnas; c++) {
+        const r = encontrarFilaLibre(c);
+        if (r !== -1) {
+            tablero[r][c] = JUGADOR_IA;
             
-            const nuevoValor = minimax(copiaTablero, profundidad - 1, false).score;
+            // Usar la profundidad seleccionada
+            const valor = minimax(tablero, profundidadSeleccionada, -Infinity, Infinity, false); 
             
-            if (nuevoValor > valor) {
-                valor = nuevoValor;
-                mejorColumna = col;
+            tablero[r][c] = TABLERO_VACIO; // Deshacer el movimiento
+            
+            if (valor > mejorValor) {
+                mejorValor = valor;
+                mejorColumna = c;
             }
         }
-        return { score: valor, col: mejorColumna };
+    }
+    // Prioridad al centro si no hay jugada mejor clara
+    return (mejorColumna !== -1) ? mejorColumna : 
+                                   (encontrarFilaLibre(3) !== -1 ? 3 : 
+                                   (encontrarFilaLibre(0) !== -1 ? 0 : 
+                                   0)); 
+}
 
-    } else {
-        let valor = Infinity;
-        let mejorColumna = movimientosValidos[0];
 
-        for (const col of movimientosValidos) {
-            const copiaTablero = duplicarTablero(board);
-            const fila = obtenerFilaDisponibleMinimax(copiaTablero, col);
-            copiaTablero[fila][col] = JUGADOR;
-            
-            const nuevoValor = minimax(copiaTablero, profundidad - 1, true).score;
-            
-            if (nuevoValor < valor) {
-                valor = nuevoValor;
-                mejorColumna = col;
-            }
+// --- ALGORITMO MINIMAX ---
+
+function minimax(simTablero, profundidad, alfa, beta, esTurnoMaximizador) {
+    const movimientosValidos = obtenerMovimientosValidos(simTablero);
+    
+    // 1. Caso Base
+    if (profundidad === 0 || movimientosValidos.length === 0 || obtenerGanadorSimulacion(simTablero) !== TABLERO_VACIO) {
+        if (obtenerGanadorSimulacion(simTablero) === JUGADOR_IA) {
+            return 100000000000000 + profundidad; // La IA gana
+        } else if (obtenerGanadorSimulacion(simTablero) === JUGADOR_HUMANO) {
+            return -100000000000000 - profundidad; // El humano gana
+        } else {
+            return 0; // Empate
         }
-        return { score: valor, col: mejorColumna };
+    }
+
+    if (esTurnoMaximizador) { // Turno de la IA (Maximizador)
+        let mejorValor = -Infinity;
+        for (let c of movimientosValidos) {
+            const r = encontrarFilaLibreSim(simTablero, c);
+            simTablero[r][c] = JUGADOR_IA;
+            const valor = minimax(simTablero, profundidad - 1, alfa, beta, false);
+            simTablero[r][c] = TABLERO_VACIO;
+            
+            mejorValor = Math.max(mejorValor, valor);
+            alfa = Math.max(alfa, mejorValor);
+            if (beta <= alfa) break; 
+        }
+        return mejorValor;
+    } else { // Turno del Jugador Humano (Minimizador)
+        let mejorValor = Infinity;
+        for (let c of movimientosValidos) {
+            const r = encontrarFilaLibreSim(simTablero, c);
+            simTablero[r][c] = JUGADOR_HUMANO;
+            const valor = minimax(simTablero, profundidad - 1, alfa, beta, true);
+            simTablero[r][c] = TABLERO_VACIO;
+            
+            mejorValor = Math.min(mejorValor, valor);
+            beta = Math.min(beta, mejorValor);
+            if (beta <= alfa) break;
+        }
+        return mejorValor;
     }
 }
 
-function encontrarMejorMovimiento(board, profundidad) {
-    return minimax(board, profundidad, true);
-}
+// --- FUNCIONES AUXILIARES DE SIMULACIÓN ---
 
-function duplicarTablero(board) {
-    return board.map(arr => [...arr]);
-}
-
-function obtenerFilaDisponibleMinimax(board, col) {
-    for (let r = FILAS - 1; r >= 0; r--) {
-        if (board[r][col] === VACIO) {
-            return r;
-        }
-    }
-    return -1;
-}
-
-function obtenerMovimientosValidosMinimax(board) {
+function obtenerMovimientosValidos(simTablero) {
     const validas = [];
-    for (let c = 0; c < COLUMNAS; c++) {
-        if (obtenerFilaDisponibleMinimax(board, c) !== -1) {
+    for (let c = 0; c < columnas; c++) {
+        if (encontrarFilaLibreSim(simTablero, c) !== -1) {
             validas.push(c);
         }
     }
     return validas;
 }
 
-function verificarTerminal(board) {
-    for (let r = 0; r < FILAS; r++) {
-        for (let c = 0; c < COLUMNAS; c++) {
-            if (board[r][c] !== VACIO) {
-                if (esGanador(board, r, c, board[r][c])) {
-                    return { esTerminal: true, ganador: board[r][c] };
+function encontrarFilaLibreSim(simTablero, col) {
+    for (let r = filas - 1; r >= 0; r--) {
+        if (simTablero[r][col] === TABLERO_VACIO) {
+            return r;
+        }
+    }
+    return -1;
+}
+
+function obtenerGanadorSimulacion(simTablero) {
+    for (let r = 0; r < filas; r++) {
+        for (let c = 0; c < columnas; c++) {
+            if (simTablero[r][c] !== TABLERO_VACIO) {
+                if (chequearGanadorSim(simTablero, r, c, simTablero[r][c])) {
+                    return simTablero[r][c];
                 }
             }
         }
     }
-    if (obtenerMovimientosValidosMinimax(board).length === 0) {
-        return { esTerminal: true, ganador: VACIO };
-    }
-    return { esTerminal: false, ganador: VACIO };
+    return TABLERO_VACIO;
 }
 
-function esGanador(board, r, c, jugador) {
+// --- LÓGICA DE CHEQUEO DE GANADOR COMPLETA Y CORREGIDA ---
+
+function chequearGanador(r, c, jugador) {
     const direcciones = [
-        [0, 1], [1, 0], [1, 1], [1, -1]
+        [0, 1],   // Horizontal
+        [1, 0],   // Vertical
+        [1, 1],   // Diagonal (abajo-derecha)
+        [1, -1]   // Diagonal (abajo-izquierda)
     ];
+
     for (const [dr, dc] of direcciones) {
-        let contador = 1;
-        for (let i = 1; i <= 3; i++) {
-            const nr = r + dr * i;
-            const nc = c + dc * i;
-            if (nr >= 0 && nr < FILAS && nc >= 0 && nc < COLUMNAS && board[nr][nc] === jugador) {
-                contador++;
+        let conteo = 1; 
+        
+        // 1. Contar en la dirección positiva
+        for (let i = 1; i < 4; i++) {
+            const nuevaFila = r + dr * i;
+            const nuevaCol = c + dc * i;
+            
+            if (nuevaFila >= 0 && nuevaFila < filas && 
+                nuevaCol >= 0 && nuevaCol < columnas && 
+                tablero[nuevaFila][nuevaCol] === jugador) {
+                conteo++;
             } else {
                 break;
             }
         }
-        for (let i = 1; i <= 3; i++) {
-            const nr = r - dr * i;
-            const nc = c - dc * i;
-            if (nr >= 0 && nr < FILAS && nc >= 0 && nc < COLUMNAS && board[nr][nc] === jugador) {
-                contador++;
+
+        if (conteo >= 4) return true;
+
+        // 2. Contar en la dirección negativa
+        conteo = 1;
+
+        for (let i = 1; i < 4; i++) {
+            const nuevaFila = r - dr * i;
+            const nuevaCol = c - dc * i;
+            
+            if (nuevaFila >= 0 && nuevaFila < filas && 
+                nuevaCol >= 0 && nuevaCol < columnas && 
+                tablero[nuevaFila][nuevaCol] === jugador) {
+                conteo++;
             } else {
                 break;
             }
         }
-        if (contador >= 4) return true;
+        
+        if (conteo >= 4) return true;
     }
+    
     return false;
 }
 
-function evaluarTablero(board) {
-    let puntuacion = 0;
-    for (let r = 0; r < FILAS; r++) {
-        for (let c = 0; c < COLUMNAS; c++) {
-            if (board[r][c] === IA) {
-                puntuacion += evaluarSecuencia(board, r, c, IA);
-            } else if (board[r][c] === JUGADOR) {
-                puntuacion -= evaluarSecuencia(board, r, c, JUGADOR);
-            }
-        }
-    }
-    return puntuacion;
-}
 
-function evaluarSecuencia(board, r, c, jugador) {
-    let score = 0;
+function chequearGanadorSim(simTablero, r, c, jugador) {
     const direcciones = [
-        [0, 1], [1, 0], [1, 1], [1, -1]
+        [0, 1],
+        [1, 0],
+        [1, 1],
+        [1, -1]
     ];
 
     for (const [dr, dc] of direcciones) {
-        let contador = 0;
-        let celdasAbiertas = 0;
-
-        for (let i = 1; i <= 3; i++) {
-            const nr = r + dr * i;
-            const nc = c + dc * i;
-            if (nr < 0 || nr >= FILAS || nc < 0 || nc >= COLUMNAS) break;
-
-            if (board[nr][nc] === jugador) {
-                contador++;
-            } else if (board[nr][nc] === VACIO) {
-                celdasAbiertas++;
+        let conteo = 1; 
+        
+        // 1. Contar en la dirección positiva
+        for (let i = 1; i < 4; i++) {
+            const nuevaFila = r + dr * i;
+            const nuevaCol = c + dc * i;
+            
+            if (nuevaFila >= 0 && nuevaFila < filas && 
+                nuevaCol >= 0 && nuevaCol < columnas && 
+                simTablero[nuevaFila][nuevaCol] === jugador) {
+                conteo++;
             } else {
                 break;
             }
         }
-
-        if (contador === 2 && celdasAbiertas >= 2) {
-            score += 10;
-        } else if (contador === 3 && celdasAbiertas >= 1) {
-            score += 1000;
+        
+        // 2. Contar en la dirección negativa
+        for (let i = 1; i < 4; i++) {
+            const nuevaFila = r - dr * i;
+            const nuevaCol = c - dc * i;
+            
+            if (nuevaFila >= 0 && nuevaFila < filas && 
+                nuevaCol >= 0 && nuevaCol < columnas && 
+                simTablero[nuevaFila][nuevaCol] === jugador) {
+                conteo++;
+            } else {
+                break;
+            }
         }
-    }
-    return score;
-}
-// --- FIN ALGORITMO MINIMAX ---
-
-
-// --- EVENT LISTENERS Y ARRANQUE (SECCIÓN CORREGIDA) ---
-
-document.addEventListener('DOMContentLoaded', () => {
-    // 🥇 ASIGNAR LAS VARIABLES GLOBALES UNA VEZ QUE EL DOM ESTÁ LISTO
-    statusMessage = document.getElementById('status-message');
-    gameBoardEl = document.getElementById('game-board');
-    dropZoneEl = document.getElementById('drop-zone');
-    restartButton = document.getElementById('restart-button');
-
-    // 2. Asignar el listener al botón de reiniciar.
-    if (restartButton) {
-        restartButton.addEventListener('click', iniciarJuego);
+        
+        if (conteo >= 4) return true;
     }
     
-    // 3. Iniciar el juego por primera vez.
-    iniciarJuego();
-});
+    return false;
+}
+
+
+function esTableroLleno() {
+    return tablero[0].every(celda => celda !== TABLERO_VACIO);
+}
+
+// --- INICIO DEL JUEGO ---
+selectorDificultad.addEventListener('change', reiniciarJuego);
+reiniciarBoton.addEventListener('click', reiniciarJuego);
+reiniciarJuego();

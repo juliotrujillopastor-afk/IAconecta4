@@ -3,23 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuatro en Raya (Connect 4) con IA</title>
+    <title>Conecta 4 vs IA 🤖</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
-        <h1>🟡 Cuatro en Raya 🔴</h1>
-        
-        <div id="status-message">Turno del Jugador (Tú)</div>
-        
-        <div id="game-board" class="game-board">
-            <div id="drop-zone" class="drop-zone"></div>
-        </div>
-        
-        <button id="restart-button">Reiniciar Partida</button>
-    </div>
+    <header>
+        <h1>🔴 Jugador - IA 🟡</h1>
+    </header>
 
-    <script src="script.js"></script>
+    <main>
+        <section class="controles">
+            <label for="dificultad">Selecciona la dificultad:</label>
+            <select id="dificultad" aria-label="Nivel de dificultad del juego">
+                <option value="1">Fácil</option>
+                <option value="3" selected>Normal</option>
+                <option value="5">Difícil</option>
+                <option value="7">Experto</option>
+            </select>
+            <button id="reiniciar" class="boton">🔄 Reiniciar</button>
+        </section>
+
+        <section id="estado-juego">
+            <p id="mensaje" aria-live="polite">Turno del Jugador (Rojo)</p>
+        </section>
+
+        <section id="tablero-contenedor" role="region" aria-label="Tablero de Conecta 4">
+            <div id="juego-tablero"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Desarrollado con ❤️ | Modo IA incluida</p>
+    </footer>
+
+    <script src="script.js" defer></script>
 </body>
 </html>

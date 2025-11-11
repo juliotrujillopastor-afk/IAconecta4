@@ -1,127 +1,159 @@
-:root {
-    --filas: 6;
-    --columnas: 7;
-    --tamaño-celda: 60px; /* Tamaño de cada celda/ficha */
-    --color-fondo-tablero: #004d99; /* Azul Connect 4 */
-}
-
+/* ======= Estilo general ======= */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    min-height: 100vh;
-    background-color: #f0f0f0;
+    background: linear-gradient(180deg, #e8f0ff, #f4f4f9);
     margin: 0;
-}
-
-.container {
-    text-align: center;
-    padding: 20px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    min-height: 100vh;
 }
 
 h1 {
-    color: var(--color-fondo-tablero);
-}
-
-#status-message {
-    margin: 15px 0;
-    font-size: 1.2em;
-    font-weight: bold;
-    min-height: 1.2em; /* Para evitar saltos de diseño */
-}
-
-/* --- ESTILOS DEL TABLERO GRID --- */
-.game-board {
-    display: grid;
-    /* 7 columnas de tamaño fijo */
-    grid-template-columns: repeat(var(--columnas), var(--tamaño-celda));
-    /* 6 filas de tamaño fijo */
-    grid-template-rows: repeat(var(--filas), var(--tamaño-celda));
-    background-color: var(--color-fondo-tablero);
-    border: 5px solid var(--color-fondo-tablero);
-    border-radius: 10px;
-    gap: 0; /* No queremos espacio entre las celdas */
-    position: relative;
-}
-
-/* Estilo para cada CELDA (Agujero del tablero) */
-.cell {
-    width: var(--tamaño-celda);
-    height: var(--tamaño-celda);
-    background-color: white;
-    /* Hacemos que la celda parezca un agujero */
-    border-radius: 50%; 
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
-    /* Transición para la animación de caída */
-    transition: background-color 0.3s ease;
-    position: relative;
-    cursor: pointer;
-}
-
-/* Contenedor de la zona de soltar (Drop Zone) */
-#drop-zone {
-    grid-area: 1 / 1 / -1 / -1; /* Cubre todo el área del tablero */
-    display: grid;
-    grid-template-columns: repeat(var(--columnas), var(--tamaño-celda));
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 10;
-}
-
-/* Área de soltar (los 7 elementos transparentes superiores) */
-.drop-column {
-    width: var(--tamaño-celda);
-    height: calc(var(--tamaño-celda) * var(--filas));
-    cursor: pointer;
-    opacity: 0; /* Transparente, solo para capturar el clic */
-    transition: opacity 0.2s;
-}
-
-/* Indicador visual al pasar el ratón */
-.drop-column:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-    opacity: 1;
-}
-
-/* --- ESTILOS DE LAS FICHAS --- */
-.chip {
-    width: 90%;
-    height: 90%;
-    border-radius: 50%;
-    position: absolute; /* Para que la ficha esté DENTRO de la celda */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
-    z-index: 5; /* Asegura que la ficha esté sobre el agujero blanco */
-}
-
-.player1 {
-    background-color: #ffc107; /* Amarillo */
-}
-
-.player2 {
-    background-color: #dc3545; /* Rojo */
-}
-
-/* --- BOTÓN DE REINICIO --- */
-#restart-button {
+    color: #004085;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     margin-top: 20px;
+}
+
+/* ======= Controles ======= */
+.controles {
+    margin: 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffffcc;
     padding: 10px 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+.controles label {
+    font-weight: bold;
+    color: #333;
+}
+
+.controles select, 
+.controles button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
     font-size: 1em;
     cursor: pointer;
-    background-color: var(--color-fondo-tablero);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    transition: background-color 0.3s;
+    transition: all 0.2s ease;
 }
 
-#restart-button:hover {
-    background-color: #003a73;
+/* ======= Botón Reiniciar ======= */
+#reiniciar {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+}
+
+#reiniciar:hover {
+    background-color: #1e7e34;
+    transform: scale(1.05);
+}
+
+/* ======= Tablero ======= */
+#juego-tablero {
+    display: grid;
+    grid-template-columns: repeat(7, 70px);
+    grid-template-rows: repeat(6, 70px);
+    background-color: #007bff;
+    border: 8px solid #0056b3;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    padding: 10px;
+    margin-top: 15px;
+}
+
+/* ======= Celdas ======= */
+.celda {
+    width: 70px;
+    height: 70px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.celda:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+/* ======= Fichas ======= */
+.ficha {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,0.2);
+    animation: drop 0.35s ease-out forwards;
+}
+
+.jugador-1 {
+    background: radial-gradient(circle at 30% 30%, #ff6b6b, #c70000);
+}
+
+.jugador-2 {
+    background: radial-gradient(circle at 30% 30%, #ffe066, #e0a800);
+}
+
+/* ======= Mensaje de estado ======= */
+#mensaje {
+    margin-top: 25px;
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #333;
+    background-color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+/* ======= Animaciones ======= */
+@keyframes drop {
+    0% {
+        transform: translateY(-400%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ======= Adaptación a pantallas pequeñas ======= */
+@media (max-width: 600px) {
+    #juego-tablero {
+        grid-template-columns: repeat(7, 45px);
+        grid-template-rows: repeat(6, 45px);
+        padding: 6px;
+    }
+
+    .celda {
+        width: 45px;
+        height: 45px;
+    }
+
+    .ficha {
+        width: 38px;
+        height: 38px;
+    }
+
+    h1 {
+        font-size: 1.4em;
+        text-align: center;
+    }
+
+    #mensaje {
+        font-size: 1.1em;
+    }
 }
