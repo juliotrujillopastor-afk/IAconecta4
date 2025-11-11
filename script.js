@@ -8,6 +8,7 @@ const TABLERO_VACIO = 0;
 const JUGADOR_HUMANO = 1;
 const JUGADOR_IA = 2;
 
+// Asegúrate de que estos elementos existan en tu HTML
 const tableroDiv = document.getElementById('juego-tablero');
 const mensajeDiv = document.getElementById('mensaje');
 const reiniciarBoton = document.getElementById('reiniciar');
@@ -16,6 +17,7 @@ const selectorDificultad = document.getElementById('dificultad');
 // --- FUNCIONES DE INICIALIZACIÓN Y COLOCACIÓN ---
 
 function crearTableroHTML() {
+    if (!tableroDiv) return; // Protección si el elemento no existe
     tableroDiv.innerHTML = '';
     tablero = [];
     for (let r = 0; r < filas; r++) {
@@ -43,11 +45,12 @@ function encontrarFilaLibre(col) {
 function colocarFicha(r, c, jugador) {
     tablero[r][c] = jugador;
     const celdaIndex = r * columnas + c;
-    const celdaDiv = tableroDiv.children[celdaIndex];
-
-    const fichaDiv = document.createElement('div');
-    fichaDiv.classList.add('ficha', `jugador-${jugador}`);
-    celdaDiv.appendChild(fichaDiv);
+    if (tableroDiv && tableroDiv.children[celdaIndex]) {
+        const celdaDiv = tableroDiv.children[celdaIndex];
+        const fichaDiv = document.createElement('div');
+        fichaDiv.classList.add('ficha', `jugador-${jugador}`);
+        celdaDiv.appendChild(fichaDiv);
+    }
 }
 
 // --- LÓGICA DE JUEGO PRINCIPAL ---
@@ -74,19 +77,19 @@ function manejarClick(col) {
 function cambiarTurno() {
     jugadorActual = (jugadorActual === JUGADOR_HUMANO) ? JUGADOR_IA : JUGADOR_HUMANO;
     const nombreJugador = (jugadorActual === JUGADOR_HUMANO) ? 'Jugador (Rojo)' : 'IA (Amarillo)';
-    mensajeDiv.textContent = `Turno de la ${nombreJugador}`;
+    if (mensajeDiv) mensajeDiv.textContent = `Turno de la ${nombreJugador}`;
 }
 
 function finalizarJuego(mensaje) {
     juegoActivo = false;
-    mensajeDiv.textContent = mensaje;
+    if (mensajeDiv) mensajeDiv.textContent = mensaje;
 }
 
 function reiniciarJuego() {
     juegoActivo = true;
     jugadorActual = JUGADOR_HUMANO;
     crearTableroHTML();
-    mensajeDiv.textContent = 'Turno del Jugador (Rojo)';
+    if (mensajeDiv) mensajeDiv.textContent = 'Turno del Jugador (Rojo)';
 }
 
 // --- LÓGICA DE TURNO DEL ORDENADOR ---
@@ -115,7 +118,7 @@ function encontrarMejorMovimiento() {
     let mejorColumna = -1;
     
     // Obtiene el valor de profundidad del selector
-    const profundidadSeleccionada = parseInt(selectorDificultad.value); 
+    const profundidadSeleccionada = selectorDificultad ? parseInt(selectorDificultad.value) : 4;
     
     for (let c = 0; c < columnas; c++) {
         const r = encontrarFilaLibre(c);
@@ -147,13 +150,15 @@ function minimax(simTablero, profundidad, alfa, beta, esTurnoMaximizador) {
     const movimientosValidos = obtenerMovimientosValidos(simTablero);
     
     // 1. Caso Base
-    if (profundidad === 0 || movimientosValidos.length === 0 || obtenerGanadorSimulacion(simTablero) !== TABLERO_VACIO) {
-        if (obtenerGanadorSimulacion(simTablero) === JUGADOR_IA) {
+    const ganador = obtenerGanadorSimulacion(simTablero);
+    if (profundidad === 0 || movimientosValidos.length === 0 || ganador !== TABLERO_VACIO) {
+        if (ganador === JUGADOR_IA) {
             return 100000000000000 + profundidad; // La IA gana
-        } else if (obtenerGanadorSimulacion(simTablero) === JUGADOR_HUMANO) {
+        } else if (ganador === JUGADOR_HUMANO) {
             return -100000000000000 - profundidad; // El humano gana
         } else {
-            return 0; // Empate
+            // Aquí puedes añadir una función de evaluación heurística si quieres mejor IA
+            return 0; // Empate / Final de profundidad
         }
     }
 
@@ -208,9 +213,13 @@ function encontrarFilaLibreSim(simTablero, col) {
 }
 
 function obtenerGanadorSimulacion(simTablero) {
+    // Solo necesitamos chequear la última ficha colocada para optimizar, 
+    // pero para ser robustos en la simulación, chequeamos todas.
+    // Esta función podría optimizarse si se pasa la última jugada.
     for (let r = 0; r < filas; r++) {
         for (let c = 0; c < columnas; c++) {
             if (simTablero[r][c] !== TABLERO_VACIO) {
+                // Usamos la versión CORREGIDA del chequeo para la simulación
                 if (chequearGanadorSim(simTablero, r, c, simTablero[r][c])) {
                     return simTablero[r][c];
                 }
@@ -220,24 +229,24 @@ function obtenerGanadorSimulacion(simTablero) {
     return TABLERO_VACIO;
 }
 
-// --- LÓGICA DE CHEQUEO DE GANADOR COMPLETA Y CORREGIDA ---
+// --- LÓGICA DE CHEQUEO DE GANADOR CORREGIDA (PARA JUEGO REAL) ---
 
 function chequearGanador(r, c, jugador) {
     const direcciones = [
-        [0, 1],   // Horizontal
-        [1, 0],   // Vertical
-        [1, 1],   // Diagonal (abajo-derecha)
-        [1, -1]   // Diagonal (abajo-izquierda)
+        [0, 1],    // Horizontal
+        [1, 0],    // Vertical
+        [1, 1],    // Diagonal (abajo-derecha)
+        [1, -1]    // Diagonal (abajo-izquierda)
     ];
 
     for (const [dr, dc] of direcciones) {
-        let conteo = 1; 
-        
-        // 1. Contar en la dirección positiva
+        let conteo = 1; // La ficha recién colocada (r, c) ya cuenta como 1
+
+        // 1. Contar en la dirección POSITIVA
         for (let i = 1; i < 4; i++) {
             const nuevaFila = r + dr * i;
             const nuevaCol = c + dc * i;
-            
+
             if (nuevaFila >= 0 && nuevaFila < filas && 
                 nuevaCol >= 0 && nuevaCol < columnas && 
                 tablero[nuevaFila][nuevaCol] === jugador) {
@@ -247,15 +256,11 @@ function chequearGanador(r, c, jugador) {
             }
         }
 
-        if (conteo >= 4) return true;
-
-        // 2. Contar en la dirección negativa
-        conteo = 1;
-
+        // 2. Contar en la dirección NEGATIVA
         for (let i = 1; i < 4; i++) {
             const nuevaFila = r - dr * i;
             const nuevaCol = c - dc * i;
-            
+
             if (nuevaFila >= 0 && nuevaFila < filas && 
                 nuevaCol >= 0 && nuevaCol < columnas && 
                 tablero[nuevaFila][nuevaCol] === jugador) {
@@ -265,12 +270,15 @@ function chequearGanador(r, c, jugador) {
             }
         }
         
+        // 3. Chequear el total combinado
         if (conteo >= 4) return true;
     }
     
     return false;
 }
 
+
+// --- LÓGICA DE CHEQUEO DE GANADOR CORREGIDA (PARA SIMULACIÓN) ---
 
 function chequearGanadorSim(simTablero, r, c, jugador) {
     const direcciones = [
@@ -283,11 +291,11 @@ function chequearGanadorSim(simTablero, r, c, jugador) {
     for (const [dr, dc] of direcciones) {
         let conteo = 1; 
         
-        // 1. Contar en la dirección positiva
+        // 1. Contar en la dirección POSITIVA
         for (let i = 1; i < 4; i++) {
             const nuevaFila = r + dr * i;
             const nuevaCol = c + dc * i;
-            
+
             if (nuevaFila >= 0 && nuevaFila < filas && 
                 nuevaCol >= 0 && nuevaCol < columnas && 
                 simTablero[nuevaFila][nuevaCol] === jugador) {
@@ -297,11 +305,11 @@ function chequearGanadorSim(simTablero, r, c, jugador) {
             }
         }
         
-        // 2. Contar en la dirección negativa
+        // 2. Contar en la dirección NEGATIVA
         for (let i = 1; i < 4; i++) {
             const nuevaFila = r - dr * i;
             const nuevaCol = c - dc * i;
-            
+
             if (nuevaFila >= 0 && nuevaFila < filas && 
                 nuevaCol >= 0 && nuevaCol < columnas && 
                 simTablero[nuevaFila][nuevaCol] === jugador) {
@@ -319,10 +327,10 @@ function chequearGanadorSim(simTablero, r, c, jugador) {
 
 
 function esTableroLleno() {
-    return tablero[0].every(celda => celda !== TABLERO_VACIO);
+    return tablero.length > 0 && tablero[0].every(celda => celda !== TABLERO_VACIO);
 }
 
 // --- INICIO DEL JUEGO ---
-selectorDificultad.addEventListener('change', reiniciarJuego);
-reiniciarBoton.addEventListener('click', reiniciarJuego);
+if (selectorDificultad) selectorDificultad.addEventListener('change', reiniciarJuego);
+if (reiniciarBoton) reiniciarBoton.addEventListener('click', reiniciarJuego);
 reiniciarJuego();
