@@ -14,6 +14,35 @@ const mensajeDiv = document.getElementById('mensaje');
 const reiniciarBoton = document.getElementById('reiniciar');
 const selectorDificultad = document.getElementById('dificultad'); 
 
+// --- CONSTANTES DE AUDIO ---
+const rutaBaseSonidos = './sounds/'; 
+
+// *** 🎧 Efectos de sonido (formato .wav) ***
+const sonidoColocar = new Audio(rutaBaseSonidos + 'drop.wav'); 
+const sonidoGanar = new Audio(rutaBaseSonidos + 'win.wav');   
+const sonidoPerder = new Audio(rutaBaseSonidos + 'lose.wav'); 
+const sonidoError = new Audio(rutaBaseSonidos + 'error.wav'); 
+
+// *** 🎵 Música de fondo (formato .mp3) ***
+const musicaFondo = new Audio(rutaBaseSonidos + 'music.mp3');
+musicaFondo.loop = true; 
+musicaFondo.volume = 0.8; // Volumen bajo para la música
+
+// Función auxiliar para reproducir un sonido
+function reproducirSonido(audio) {
+    if (audio) {
+        // Reinicia el sonido al principio (importante para efectos cortos)
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Error al reproducir audio:', e));
+    }
+}
+
+// Función auxiliar para manejar el inicio de la música
+function iniciarMusica() {
+    // Intentar iniciar la música. Necesita una interacción previa del usuario.
+    musicaFondo.play().catch(e => console.log("Música pendiente de iniciar por interacción del usuario."));
+}
+
 // --- FUNCIONES DE INICIALIZACIÓN Y COLOCACIÓN ---
 
 function crearTableroHTML() {
@@ -57,10 +86,18 @@ function colocarFicha(r, c, jugador) {
 
 function manejarClick(col) {
     if (!juegoActivo || jugadorActual !== JUGADOR_HUMANO) return;
+    
+    // Si la música no está sonando, la iniciamos con el primer clic del usuario
+    if (musicaFondo.paused) {
+        iniciarMusica();
+    }
 
     const filaLibre = encontrarFilaLibre(col);
 
     if (filaLibre !== -1) {
+        // 🔊 Reproducir sonido al colocar ficha
+        reproducirSonido(sonidoColocar);
+
         colocarFicha(filaLibre, col, jugadorActual);
         
         if (chequearGanador(filaLibre, col, jugadorActual)) {
@@ -71,25 +108,43 @@ function manejarClick(col) {
             cambiarTurno();
             setTimeout(turnoOrdenador, 500);
         }
+    } else {
+        // 🔊 Reproducir sonido de error si la columna está llena
+        reproducirSonido(sonidoError);
     }
 }
 
 function cambiarTurno() {
     jugadorActual = (jugadorActual === JUGADOR_HUMANO) ? JUGADOR_IA : JUGADOR_HUMANO;
     const nombreJugador = (jugadorActual === JUGADOR_HUMANO) ? 'Jugador (Rojo)' : 'IA (Amarillo)';
-    if (mensajeDiv) mensajeDiv.textContent = `Turno de la ${nombreJugador}`;
+    if (mensajeDiv) mensajeDiv.textContent = `Turno ${nombreJugador}`;
 }
 
 function finalizarJuego(mensaje) {
     juegoActivo = false;
     if (mensajeDiv) mensajeDiv.textContent = mensaje;
+    
+    // 🔊 Detener la música y reproducir sonido de resultado
+    musicaFondo.pause();
+    musicaFondo.currentTime = 0;
+
+    if (mensaje.includes('Jugador')) {
+        reproducirSonido(sonidoGanar);
+    } else if (mensaje.includes('IA ha ganado')) {
+        reproducirSonido(sonidoPerder);
+    } else if (mensaje.includes('Empate')) {
+        reproducirSonido(sonidoPerder); 
+    }
 }
 
 function reiniciarJuego() {
     juegoActivo = true;
     jugadorActual = JUGADOR_HUMANO;
     crearTableroHTML();
-    if (mensajeDiv) mensajeDiv.textContent = 'Turno del Jugador (Rojo)';
+    if (mensajeDiv) mensajeDiv.textContent = 'Turno Jugador (Rojo)';
+    
+    // Iniciar música si se reinicia (aunque la reproducción automática puede bloquearse)
+    iniciarMusica();
 }
 
 // --- LÓGICA DE TURNO DEL ORDENADOR ---
@@ -101,6 +156,9 @@ function turnoOrdenador() {
     const filaLibre = encontrarFilaLibre(mejorCol);
 
     if (filaLibre !== -1) {
+        // 🔊 Reproducir sonido al colocar ficha (IA)
+        reproducirSonido(sonidoColocar);
+
         colocarFicha(filaLibre, mejorCol, JUGADOR_IA);
 
         if (chequearGanador(filaLibre, mejorCol, JUGADOR_IA)) {
@@ -138,9 +196,9 @@ function encontrarMejorMovimiento() {
     }
     // Prioridad al centro si no hay jugada mejor clara
     return (mejorColumna !== -1) ? mejorColumna : 
-                                   (encontrarFilaLibre(3) !== -1 ? 3 : 
-                                   (encontrarFilaLibre(0) !== -1 ? 0 : 
-                                   0)); 
+                                  (encontrarFilaLibre(3) !== -1 ? 3 : 
+                                  (encontrarFilaLibre(0) !== -1 ? 0 : 
+                                  0)); 
 }
 
 
@@ -213,13 +271,9 @@ function encontrarFilaLibreSim(simTablero, col) {
 }
 
 function obtenerGanadorSimulacion(simTablero) {
-    // Solo necesitamos chequear la última ficha colocada para optimizar, 
-    // pero para ser robustos en la simulación, chequeamos todas.
-    // Esta función podría optimizarse si se pasa la última jugada.
     for (let r = 0; r < filas; r++) {
         for (let c = 0; c < columnas; c++) {
             if (simTablero[r][c] !== TABLERO_VACIO) {
-                // Usamos la versión CORREGIDA del chequeo para la simulación
                 if (chequearGanadorSim(simTablero, r, c, simTablero[r][c])) {
                     return simTablero[r][c];
                 }
@@ -229,18 +283,18 @@ function obtenerGanadorSimulacion(simTablero) {
     return TABLERO_VACIO;
 }
 
-// --- LÓGICA DE CHEQUEO DE GANADOR CORREGIDA (PARA JUEGO REAL) ---
+// --- LÓGICA DE CHEQUEO DE GANADOR (JUEGO REAL) ---
 
 function chequearGanador(r, c, jugador) {
     const direcciones = [
-        [0, 1],    // Horizontal
-        [1, 0],    // Vertical
-        [1, 1],    // Diagonal (abajo-derecha)
-        [1, -1]    // Diagonal (abajo-izquierda)
+        [0, 1],    // Horizontal
+        [1, 0],    // Vertical
+        [1, 1],    // Diagonal (abajo-derecha)
+        [1, -1]    // Diagonal (abajo-izquierda)
     ];
 
     for (const [dr, dc] of direcciones) {
-        let conteo = 1; // La ficha recién colocada (r, c) ya cuenta como 1
+        let conteo = 1; 
 
         // 1. Contar en la dirección POSITIVA
         for (let i = 1; i < 4; i++) {
@@ -278,7 +332,7 @@ function chequearGanador(r, c, jugador) {
 }
 
 
-// --- LÓGICA DE CHEQUEO DE GANADOR CORREGIDA (PARA SIMULACIÓN) ---
+// --- LÓGICA DE CHEQUEO DE GANADOR (SIMULACIÓN) ---
 
 function chequearGanadorSim(simTablero, r, c, jugador) {
     const direcciones = [
@@ -333,4 +387,6 @@ function esTableroLleno() {
 // --- INICIO DEL JUEGO ---
 if (selectorDificultad) selectorDificultad.addEventListener('change', reiniciarJuego);
 if (reiniciarBoton) reiniciarBoton.addEventListener('click', reiniciarJuego);
+
+// Esto iniciará la lógica del juego, pero la música se iniciará con el primer clic del usuario
 reiniciarJuego();
